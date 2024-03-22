@@ -11,15 +11,15 @@ User = get_user_model()
         Zone                     // either 1 or 2
         Ipv4 subnet block
         List of public subnets (doc)
-        Public subnet
-        Route Table ID
-        Network ID
-        List of VM IDs
+            Public subnet
+                Route Table ID
+                Network ID
+                List of VM IDs
         List of private subnets (doc)
-        Private Subnet
-        Route Table ID
-        Network ID
-        List of VM IDs
+            Private Subnet
+                Route Table ID
+                Network ID
+                List of VM IDs
 """
 class VPC(models.Model):
     VPCID = models.CharField(max_length=4, null=False, blank=False)
@@ -53,9 +53,9 @@ class Network(models.Model):
     ROUTE TABLE   // for connection of subnet to internet and to other subnets
         ID
         Name
-        Rules (doc)
-        Destination
-        Target (local, Internet gateway, any other network interface, any VM instance)
+        Rules (JSON)
+            Destination
+            Target (local, Internet gateway, any other network interface, any VM instance)
 """
 class RouteTable(models.Model):
     RouteTableID = models.CharField(max_length=4, null=False, blank=False)
