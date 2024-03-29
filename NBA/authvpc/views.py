@@ -16,28 +16,31 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request, format=None):
+        user = User.objects.filter(username=request.data["username"])
+        if len(user) > 0:
+            return Response({"data" : {"val" : False, "detail" : "Username Exists"}}, status=status.HTTP_400_BAD_REQUEST)
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response({"data" : {"val" : True, "detail" : "Registration Successful"}}, status=status.HTTP_200_OK)
-        return Response({"data" : {"val" : True, "detail" : serializer.errors}}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"data" : {"val" : False, "detail" : serializer.errors}}, status=status.HTTP_400_BAD_REQUEST)
 
 
 #view to authenticate 
 class MyTokenObtainPairView(TokenObtainPairView):
-    permissions_classes = [AllowAny]
+    permission_classes = [AllowAny]
     serializer_class = MyTokenObtainPairSerializer
 
     def get(self, requests, format=None):
         return(Response({"msg": "Get not allowed"}))
 
     def post(self, requests, format=None):
-        r = super().post(requests)
+        r = super().post(requests, format)
         
         if r.status_code == 200:
             obj = {}
-            client = User.objects.get(username=obj["username"])
-            # obj["username"] = client.usernameW
+            # client = User.objects.get(username=obj["username"]) 
+            # obj["username"] = client.username
             
             return Response({"data" : {"val" : True, "tokens": r.data, "details":obj}}, status=status.HTTP_200_OK)
         return r

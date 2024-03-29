@@ -22,7 +22,7 @@ User = get_user_model()
                 List of VM IDs
 """
 class VPC(models.Model):
-    VPCID = models.CharField(max_length=4, null=False, blank=False)
+    # VPCID = models.AutoField(primary_key=True)
     Name = models.CharField(max_length=30, null=False, blank=False)
     TenantID = models.CharField(max_length=4, null=False, blank=False)
     Zone = models.CharField(max_length=1, null=False, blank=False)
@@ -31,7 +31,7 @@ class VPC(models.Model):
     PrivateSubnet = models.JSONField(null=True, default=dict, blank=True)
 
     def __str__(self):
-        return self.VPCID + " -> " + self.Name
+        return  self.id + " -> " + self.Name
 
 """
     NETWORK    // predefined for local and Internet Gateway
@@ -70,14 +70,14 @@ class RouteTable(models.Model):
         ID
         vRAM             (MB)
         vCPUs
-        vDiskStorage (GB)   
+        diskSize (GB)   
         Image                            // default to ubuntu-jammy
         Key pair location           // default to ~/.ssh/
         Security Group JSON  // Per VM IP table firewall
         State
 """
 class Instance(models.Model):
-    InstanceID = models.CharField(max_length=4, null=False, blank=False)
+    # InstanceID = models.AutoField(primary_key=True)
     Name = models.CharField(max_length=30, null=False, blank=False)
     Image = models.CharField(max_length=30, null=False, blank=False)
     SecurityGroup = models.JSONField(null=True, default=dict, blank=True)
@@ -85,6 +85,8 @@ class Instance(models.Model):
     State = models.CharField(max_length=10, null=False, blank=False)
     vRAM = models.IntegerField(null=False, blank=False)
     vCPU = models.IntegerField(null=False, blank=False)
+    diskSize = models.IntegerField(null=False, blank=False)
+
 
     def __str__(self):
-        return self.InstanceID + " -> " + self.Name
+        return self.id + " -> " + self.Name

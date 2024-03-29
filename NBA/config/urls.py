@@ -5,5 +5,6 @@ from django.urls import path
 from .views import *
   
 urlpatterns = [
+    path('vpc/', VPCView.as_view(), name='vpc'),
 ]
 urlpatterns = format_suffix_patterns(urlpatterns)
