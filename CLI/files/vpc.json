@@ -1,5 +1,5 @@
 {
-    "Name": "vpc_name2",
+    "Name": "vpc_name4",
     "Zone": "1",
     "subnet": "192.168.0.0/16",
     "PublicSubnet": {
@@ -17,11 +17,11 @@
     "PrivateSubnet": {
         "list": [
             {
-                "subnet": "192.168.1.0/24",
+                "subnet": "192.168.3.0/24",
                 "VMs": []
             },
             {
-                "subnet": "192.168.2.0/24",
+                "subnet": "192.168.4.0/24",
                 "VMs": []
             }
         ]

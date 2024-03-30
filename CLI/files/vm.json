@@ -5,6 +5,5 @@
     "vRAM": "1024",
     "vCPU": "3",
     "diskSize": "20",
-    "State": "down",
     "SecurityGroup": {}
 }

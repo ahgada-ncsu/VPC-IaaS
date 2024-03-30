@@ -2,7 +2,7 @@
     Defines actions that will be triggered upon client actions
 """
 
-from api import register_api_call, login_api_call, create_vpc_api_call, list_vpc_api_call, get_vpc_info_api_call
+from api import register_api_call, login_api_call, create_vpc_api_call, list_vpc_api_call, get_vpc_info_api_call, create_vm_api_call, delete_vpc_api_call, delete_vm_api_call
 import json
 import os
 from pprint import pprint
@@ -65,7 +65,6 @@ def create_VPC():
         print(resp)
 
 
-
 def get_VPC_info():
     id = input("VPC ID: ")
     resp = get_vpc_info_api_call(id)
@@ -88,13 +87,37 @@ def create_VM():
     data["vRAM"] = vpc_data["vRAM"]
     data["vCPU"] = vpc_data["vCPU"]
     data["diskSize"] = vpc_data["diskSize"]
-    data["State "] = vpc_data["State "]
+    data["State"] = "DOWN"
     data["SecurityGroup"] = json.dumps(vpc_data["SecurityGroup"])
+    data["VPCID"] = VPCID
+    data["Subnet"] = Subnet
+
+    resp = create_vm_api_call(data)
+    resp = json.loads(resp)
+
+    if resp["val"]:
+        if resp["data"]["logical_provider_ip"] == "":
+            print("Run private VM creation SBA")
+        else:
+            print("Run public VM creation SBA")
+
+    print(resp)
 
 
 
 def access_VM():
     print("access VM -> To be implemented")
+
+
+def delete_vpc():
+    id = input("VPC ID: ")
+    resp = delete_vpc_api_call(id)
+    print(resp)
+
+def delete_vm():
+    id = input("VM ID: ")
+    resp = delete_vm_api_call(id)
+    print(resp)
 
 
 def logout():

@@ -29,9 +29,10 @@ class VPC(models.Model):
     subnet = models.CharField(max_length=20, null=False, blank=False)
     PublicSubnet = models.JSONField(null=True, default=dict, blank=True)
     PrivateSubnet = models.JSONField(null=True, default=dict, blank=True)
+    logical_provider_subnet = models.CharField(max_length=20, null=False, blank=False)
 
     def __str__(self):
-        return  self.id + " -> " + self.Name
+        return  str(self.id) + " -> " + self.Name
 
 """
     NETWORK    // predefined for local and Internet Gateway
@@ -86,7 +87,22 @@ class Instance(models.Model):
     vRAM = models.IntegerField(null=False, blank=False)
     vCPU = models.IntegerField(null=False, blank=False)
     diskSize = models.IntegerField(null=False, blank=False)
+    logical_provider_ip = models.CharField(max_length=20, null=True, blank=True)
 
 
     def __str__(self):
-        return self.id + " -> " + self.Name
+        return str(self.id) + " -> " + self.Name
+
+"""
+    Maps VPC IDs to logical provider network subnet
+"""
+class ProviderNetworkVPCMap(models.Model):
+    subnet = models.CharField(max_length=20, null=False, blank=False)
+
+
+"""
+    Mapping between the provider network IP and public VMs
+"""
+class ProviderNetwork(models.Model):
+    ip = models.CharField(max_length=20, null=False, blank=False)
+    VPCID = models.IntegerField(null=False, blank=False)
