@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from rest_framework.response import Response
 
+import json
 from .serializers import *
 from .models import *
 
@@ -29,6 +30,30 @@ def get_ip_for_vm(vpc_id):
         s = networks[len(networks) - 1].ip
         ips = s.split(".")
         return ips[0]+"."+ips[1]+"."+ips[2]+"."+str(int(ips[3]) + 1)
+
+def get_provider_ip_for_vpc(tenant_id, vpc_id):
+    # 172.16.[Tenant_ID].[(VPCID -1)*4+1]/30
+    # 172.16.[Tenant_ID].[(VPCID -1)*4+2]/30
+    v0 = (vpc_id - 1) * 4
+    v1 = (vpc_id - 1) * 4 + 1
+    v2 = (vpc_id - 1) * 4 + 2
+    return [
+        "172.16."+str(tenant_id+1)+"."+str(v0)+"/30",
+        "172.16."+str(tenant_id+1)+"."+str(v1),
+        "172.16."+str(tenant_id+1)+"."+str(v2)
+    ]
+
+def get_transit_ip_for_vpc(tenant_id, vpc_id):
+    # 172.15.[Tenant_ID].[(VPCID -1)*4+1]/30
+    # 172.15.[Tenant_ID].[(VPCID -1)*4+2]/30
+    v0 = (vpc_id - 1) * 4
+    v1 = (vpc_id - 1) * 4 + 1
+    v2 = (vpc_id - 1) * 4 + 2
+    return [
+        "172.15."+str(tenant_id+1)+"."+str(v0)+"/30",
+        "172.15."+str(tenant_id+1)+"."+str(v1),
+        "172.15."+str(tenant_id+1)+"."+str(v2)
+    ]
 
 class VPCView(APIView):
     permission_classes=[IsAuthenticated]
@@ -61,14 +86,31 @@ class VPCView(APIView):
             if p.is_valid():
                 p.save()
             records_serializer.save()
-            return Response({ "val": True, "data": "Success"})
+            tenant_username = request.user.username
+            all_users = User.objects.all()
+            tenant_id = 0
+            for i in all_users:
+                if i.username == tenant_username:
+                    break
+                tenant_id+=1    
+            vpc_id = records_serializer.data["id"]
+            sub2 = get_provider_ip_for_vpc(tenant_id, vpc_id)
+            sub3 = get_transit_ip_for_vpc(tenant_id, vpc_id)
+            vpc = VPC.objects.filter(id=vpc_id)[0]
+            vpc.provider_subnet = {"iplist": sub2}
+            vpc.transit_subnet = {"iplist": sub3}
+            vpc.save()
+
+            num_vpcs = len(VPC.objects.filter(TenantID = tenant_username))
+
+            return Response({ "val": True, "data": {"ser": records_serializer.data, "add": {"provider": sub2, "transit": sub3, "num_vpcs": num_vpcs, "tenant_id": tenant_id}}})
         return Response({ "val": False, "data": records_serializer.errors }, status=status.HTTP_400_BAD_REQUEST)
      
     # Get individual VPC info
     def put(self, request):
         vpc_id = int(request.data["id"])
         record = VPC.objects.get(id=vpc_id)
-        record_serializer = VPCSerializer(record)
+        record_serializer = IndividualVPCSerializer(record)
         return Response({
             "val": True,
             "data": record_serializer.data
@@ -164,3 +206,44 @@ class Delete(APIView):
             vm[0].delete()
             return Response({"val": True, "data": "VM deleted successfully"})
         return Response({"val": False, "data": "VM not found"})
+
+
+
+class InterVPCView(APIView):
+    permission_classes=[IsAuthenticated]
+
+    # Add InterVPC communication
+    def post(self, request):
+        tenant_user = request.user.username
+        vpcid1 = request.data["VPCID1"]
+        vpcid2 = request.data["VPCID2"]
+        
+        vpc1 = VPC.objects.filter(id=vpcid1)[0]
+        vpc2 = VPC.objects.filter(id=vpcid2)[0]
+
+        vpc1_data = IndividualVPCSerializer(vpc1)
+        vpc2_Data = IndividualVPCSerializer(vpc2)
+
+        all_users = User.objects.all()
+        tenant_id = 0
+        for i in all_users:
+            if i.username == tenant_user:
+                break
+            tenant_id+=1
+
+        state = request.data._mutable
+        request.data._mutable = True
+        request.data["tenant"] = tenant_user
+        request.data._mutable = state
+
+        record_serializer = InterVPCSerializer(data=request.data)
+        if record_serializer.is_valid():
+            record_serializer.save()
+            return Response({
+                "val": True,
+                "data": {"ser": record_serializer.data, "vpc1": vpc1_data.data, "vpc2": vpc2_Data.data}
+            })
+        return Response({
+            "val": False,
+            "data": record_serializer.errors
+        })

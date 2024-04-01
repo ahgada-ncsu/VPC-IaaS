@@ -4,7 +4,7 @@
 
 import os
 from api import *
-from actions import login, create_account, list_VPCs, list_VMs_in_VPC, create_VPC, create_VM, logout, access_VM, quit, get_VPC_info, delete_vpc, delete_vm
+from actions import login, create_account, list_VPCs, list_VMs_in_VPC, create_VPC, create_VM, logout, access_VM, quit, get_VPC_info, delete_vpc, delete_vm, connect_vpcs
 
 auth_user_actions = [
     "Create Account",
@@ -22,6 +22,7 @@ user_actions = [
     "List_VPCs",
     "Get VPC Info",
     "List VMs in VPC",
+    "Connect VPCs",
     "Access VM",
     "Delete VPC",
     "Delete VM",
@@ -29,7 +30,7 @@ user_actions = [
     "Quit"
 ]
 
-# fill this with imported actions
+# fill this with imported actionsl
 
 cli_actions = [
     create_VPC,
@@ -37,6 +38,7 @@ cli_actions = [
     list_VPCs,
     get_VPC_info,
     list_VMs_in_VPC,
+    connect_vpcs,
     access_VM,
     delete_vpc,
     delete_vm,

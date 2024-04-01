@@ -57,3 +57,8 @@ def delete_vm_api_call(id):
     tokens = get_token()
     response = requests.put(url + 'config/delete/', data={"id": id}, headers={'Authorization': 'Bearer '+tokens["access"]})
     return response.text
+
+def inter_vpc_api_call(vpc1, vpc2):
+    tokens = get_token()
+    response = requests.post(url + 'config/intervpc/', data={"VPCID1": vpc1, "VPCID2": vpc2}, headers={'Authorization': 'Bearer '+tokens["access"]})
+    return response.text

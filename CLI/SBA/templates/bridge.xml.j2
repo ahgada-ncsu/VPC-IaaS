@@ -1,0 +1,6 @@
+<network>
+  <name>t{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }}</name>
+  <forward mode='bridge'/>
+  <bridge name='t{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }}'/>
+  <virtualport type='openvswitch'/>
+</network>

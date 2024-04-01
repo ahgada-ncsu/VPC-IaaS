@@ -7,6 +7,7 @@ from .views import *
 urlpatterns = [
     path('vpc/', VPCView.as_view(), name='vpc'),
     path('vm/', VMView.as_view(), name='vm'),
-    path('delete/', Delete.as_view(), name='delete')
+    path('delete/', Delete.as_view(), name='delete'),
+    path("intervpc/", InterVPCView.as_view(), name="intervpc")
 ]
 urlpatterns = format_suffix_patterns(urlpatterns)

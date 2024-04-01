@@ -30,6 +30,9 @@ class VPC(models.Model):
     PublicSubnet = models.JSONField(null=True, default=dict, blank=True)
     PrivateSubnet = models.JSONField(null=True, default=dict, blank=True)
     logical_provider_subnet = models.CharField(max_length=20, null=False, blank=False)
+    provider_subnet = models.JSONField(null=True, default=dict, blank=True)
+    transit_subnet = models.JSONField(null=True, default=dict, blank=True)
+
 
     def __str__(self):
         return  str(self.id) + " -> " + self.Name
@@ -106,3 +109,11 @@ class ProviderNetworkVPCMap(models.Model):
 class ProviderNetwork(models.Model):
     ip = models.CharField(max_length=20, null=False, blank=False)
     VPCID = models.IntegerField(null=False, blank=False)
+
+"""
+    Table for InterVPC communication
+"""
+class InterVPC(models.Model):
+    tenant = models.CharField(max_length=30, null=False, blank=False)
+    VPCID1 = models.IntegerField(blank=False, null=False)
+    VPCID2 = models.IntegerField(blank=False, null=False)

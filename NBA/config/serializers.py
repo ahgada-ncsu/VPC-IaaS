@@ -4,12 +4,17 @@ from .models import *
 class VPCSerializer(serializers.ModelSerializer):
     class Meta:
         model = VPC
-        fields = ("Name", "Zone", "TenantID", "subnet", "PublicSubnet", "PrivateSubnet", "logical_provider_subnet")
+        fields = ("id", "Name", "Zone", "TenantID", "subnet", "PublicSubnet", "PrivateSubnet", "logical_provider_subnet")
 
 class ListVPCSerializer(serializers.ModelSerializer):
     class Meta:
         model = VPC
         fields = ("id", "Name")
+
+class IndividualVPCSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VPC
+        fields = ("id", "Name", "Zone", "TenantID", "subnet", "PublicSubnet", "PrivateSubnet", "logical_provider_subnet", "provider_subnet", "transit_subnet")
 
 class VMSerializer(serializers.ModelSerializer):
     # net_type = serializers.CharField()
@@ -26,3 +31,8 @@ class ProviderNetworkSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProviderNetwork
         fields = ("ip", "VPCID")
+
+class InterVPCSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterVPC
+        fields = ("tenant", "VPCID1", "VPCID2")

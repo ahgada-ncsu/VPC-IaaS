@@ -1,0 +1,41 @@
+---
+
+- name: Connect namespace to external network
+  hosts: localhost
+  become: true
+  gather_facts: yes
+  # vars:
+  #   namespace_name: "{{ namespace_name }}"
+  #   namespace_interface_name: "{{ namespace_interface_name }}"
+  #   provider_interface_name: "{{ provider_interface_name }}"
+  #   provider_interface_ip: "{{ provider_interface_ip }}"
+  #   namespace_interface_ip: "{{ namespace_interface_ip }}"
+  #   pair_subnet: "{{ pair_subnet }}"
+  #   pair_subnet_prefix: "{{ pair_subnet_prefix }}"
+  tasks:
+  - name: check if any of the IP has already been used
+    shell: nmap -sn -PR "{{ namespace_interface_ip }}" & nmap -sn -PR "{{ provider_interface_ip }}"
+    register: nmap_result
+    failed_when: (nmap_result.stdout | regex_search('1 host up')) == '1 host up'
+  # - name: Print return information from the previous task
+  #   ansible.builtin.debug:
+  #     msg: "{{ (nmap_result.stdout | regex_search('1 host up')) == '1 host up' }}"
+  - name: create veth pair between namespace and provider
+    shell: ip link add "{{ provider_interface_name }}" type veth peer name "{{ namespace_interface_name }}"
+  - name: assign namespace interface to the namespace
+    shell: ip link set "{{ namespace_interface_name }}" netns "{{ namespace_name }}"
+  - name: set namespace interface up
+    shell: ip netns exec "{{ namespace_name }}" ip link set "{{ namespace_interface_name }}" up
+  - name: set provider interface up
+    shell: ip link set "{{ provider_interface_name }}" up
+  - name: assign ips 
+    block:
+      - name: assign ip to the namespace interface
+        shell: ip netns exec "{{ namespace_name }}" ip addr add "{{ namespace_interface_ip }}"/"{{ pair_subnet_prefix }}" dev "{{ namespace_interface_name }}"
+      - name: assign ip to the provider interface
+        shell: ip addr add "{{ provider_interface_ip }}"/"{{ pair_subnet_prefix }}" dev "{{ provider_interface_name }}"
+      - name: add default route
+        shell: ip netns exec "{{ namespace_name }}" ip route add default via "{{ provider_interface_ip }}" dev "{{ namespace_interface_name }}"
+    
+  - name: add NAT rule in the provider network
+    shell: ip netns exec PNS iptables -t nat -I POSTROUTING 1 -s "{{ pair_subnet }}"/"{{ pair_subnet_prefix }}" ! -d "{{ pair_subnet_prefix }}"/"{{ pair_subnet_prefix }}" -j MASQUERADE

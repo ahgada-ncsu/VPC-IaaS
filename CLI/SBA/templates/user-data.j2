@@ -1,0 +1,13 @@
+#cloud-config
+disable_root: false
+ssh_authorized_keys:
+- "{{ lookup('file', '/home/vmadm/.ssh/id_rsa.pub') }}"
+users:
+- default
+- name: root
+  lock_passwd: false
+  plain_text_passwd: 'root'
+- name: ubuntu
+  lock_passwd: false
+  plain_text_passwd: 'ubuntu'
+ssh_pwauth: true

@@ -1,0 +1,11 @@
+---
+
+
+- name: Create a new VPC
+  hosts: localhost
+  become: true
+  tasks:
+  - name: Create a new Namespace
+    community.general.ip_netns:
+      name: "{{ namespace_name }}"
+      state: present

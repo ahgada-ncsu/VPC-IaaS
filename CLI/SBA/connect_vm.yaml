@@ -1,0 +1,94 @@
+---
+- name: Define and configure L2 OVS Bridge
+  hosts: localhost
+  become: true
+  gather_facts: yes
+  vars:
+    namespace_name: "{{ namespace_name }}"
+    subnet_bridge_id: "{{ subnet_bridge_id }}"
+    vm_subnet_gateway_ip: "{{ vm_subnet_gateway_ip }}"
+    vm_subnet_prefix: "{{ vm_subnet_prefix }}"
+    vm_subnet_prefix_mask: "{{ vm_subnet_prefix_mask }}"
+    vm_subnet_broadcast: "{{ vm_subnet_broadcast }}"
+    dhcp_start_range: "{{ dhcp_start_range }}"
+    dhcp_end_range: "{{ dhcp_end_range }}"
+    dhcp_lease_time: "10h"
+    src_dir: "templates"
+
+
+  tasks:
+  - name: Create OVS Bridge
+    openvswitch_bridge:
+      bridge: "{{ subnet_bridge_id }}"
+      state: present
+
+
+  - name: Set OVS Bridge device to UP
+    command: "ip link set {{ subnet_bridge_id }} up"
+
+
+  - name: Define the network
+    virt_net:
+      command: define
+      name: '{{ subnet_bridge_id }}'
+      xml: '{{ lookup("template", "{{ src_dir }}/bridge.xml.j2") }}'
+      state: present
+    become: 'yes'
+
+
+  - name: Create the network
+    virt_net:
+      command: create
+      name: '{{ subnet_bridge_id }}'
+      autostart: true
+    become: 'yes'
+
+
+  - name: Start the network
+    virt_net:
+      command: start
+      name: '{{ subnet_bridge_id }}'
+    become: 'yes'
+
+
+  - name: Create veth pair between bridge and namespace
+    command: ip link add {{ subnet_bridge_id }}_veth1 type veth peer name {{ subnet_bridge_id }}_veth0
+
+
+  - name: Assign namespace interface to the namespace
+    command: ip link set {{ subnet_bridge_id }}_veth0 netns {{ namespace_name }}
+
+
+  - name: Set namespace interface up
+    command: ip netns exec {{ namespace_name }} ip link set {{ subnet_bridge_id }}_veth0 up
+
+
+  - name: Add bridge interface to the OVS bridge
+    block:
+      - name: Remove any default attachments
+        command: ip link set {{ subnet_bridge_id }}_veth1 nomaster
+      - name: Add to the OVS bridge
+        command: ovs-vsctl add-port {{ subnet_bridge_id }} {{ subnet_bridge_id }}_veth1
+
+
+  - name: Set bridge interface up
+    command: ip link set {{ subnet_bridge_id }}_veth1 up
+
+
+  - name: Namespace interface subnet configuration
+    block:
+      - name: Assign IP to the namespace interface
+        command: >-
+          ip netns exec {{ namespace_name }} ip addr add {{ vm_subnet_gateway_ip }}/{{ vm_subnet_prefix_mask }}
+          brd {{ vm_subnet_broadcast }} dev {{ subnet_bridge_id }}_veth0
+      - name: Setup DNSMASQ on the namespace interface
+        command: >-
+          ip netns exec {{ namespace_name }} dnsmasq --interface={{ subnet_bridge_id }}_veth0 --except-interface=lo
+          --bind-interfaces --dhcp-range={{ dhcp_start_range }},{{ dhcp_end_range }},{{ dhcp_lease_time }}
+
+
+  - name: Add a NAT rule in the iptables POSTROUTING chain in the namespace for enabling subnet external connectivity - default behaviour
+    command: >-
+      ip netns exec {{ namespace_name }} iptables -t nat -I POSTROUTING 1
+      -s {{ vm_subnet_prefix }}/{{ vm_subnet_prefix_mask }} !
+      -d {{ vm_subnet_prefix }}/{{ vm_subnet_prefix_mask }} -j MASQUERADE

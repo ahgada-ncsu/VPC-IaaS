@@ -1,0 +1,62 @@
+---
+
+- name: define transit rules
+  hosts: localhost
+  gather_facts: yes
+  become: true
+  vars:
+    tenant_id: "{{ tenant_id }}"
+    VPC_ID1: "{{ VPC_ID1 }}"
+    VPC_ID2: "{{ VPC_ID2 }}"
+    subnet_TID_VPC_ID1_transit: "{{ subnet_TID_VPC_ID1_transit }}" #subnet between tenantvpc1 and transit
+    subnet_TID_VPC_ID2_transit: "{{ subnet_TID_VPC_ID2_transit }}" #subnet between tenantvpcx and transit
+    subnet_in_TID_VPC_ID1: "{{ subnet_in_TID_VPC_ID1 }}" #subnet connected to T1NSX
+    subnet_in_TID_VPC_ID2: "{{ subnet_in_TID_VPC_ID2 }}" #subnet connected to T1NSy
+    addr_TID_VPC_ID1_VETH2: "{{ addr_TID_VPC_ID1_VETH2 }}" #ip addr of T1NSX veth2
+    addr_TID_VPC_ID1_VETH3: "{{ addr_TID_VPC_ID1_VETH3 }}" #ip addr of TransitxNSx veth3
+    addr_TID_VPC_ID2_VETH2: "{{ addr_TID_VPC_ID2_VETH2 }}" #ip addr of T1NSY veth2
+    addr_TID_VPC_ID2_VETH3: "{{ addr_TID_VPC_ID2_VETH3 }}" #ip addr of TransitxNSy veth3
+
+
+  tasks:
+  - name: Configure ip routes on Tenant vpc
+    block:
+    - name: Add ip routes on Tenant_NSID1 for Tenant_NS1ID2
+      shell: "ip netns exec t{{ tenant_id }}-ns{{ VPC_ID1 }} ip route add {{ subnet_in_TID_VPC_ID2 }} via {{ addr_TID_VPC_ID1_VETH3 }} dev t{{ tenant_id }}-ns{{ VPC_ID1 }}-veth2"
+
+    - name: Add ip routes on Tenant_NSID2 for Tenant_NS1ID1
+      shell: "ip netns exec t{{ tenant_id }}-ns{{ VPC_ID2 }} ip route add {{ subnet_in_TID_VPC_ID1 }} via {{ addr_TID_VPC_ID2_VETH3 }} dev t{{ tenant_id }}-ns{{ VPC_ID2 }}-veth2"
+
+    - name: Add ip routes on Tenant_NSID1 for Transit to Tenant_NS1ID2
+      shell: "ip netns exec t{{ tenant_id }}-ns{{ VPC_ID1 }} ip route add {{ subnet_TID_VPC_ID2_transit  }} via {{ addr_TID_VPC_ID1_VETH3 }} dev t{{ tenant_id }}-ns{{ VPC_ID1 }}-veth2"
+
+    - name: Add ip routes on Tenant_NSID2 for Transit to Tenant_NS1ID1
+      shell: "ip netns exec t{{ tenant_id }}-ns{{ VPC_ID2 }} ip route add {{ subnet_TID_VPC_ID1_transit  }} via {{ addr_TID_VPC_ID2_VETH3 }} dev t{{ tenant_id }}-ns{{ VPC_ID2 }}-veth2"
+
+
+  - name: Configure iptable rules in Tenant_NS1IDx
+    block:
+    - name: Add ip tables rules to accept from Tenant_NS1ID2
+      shell: "ip netns exec t{{ tenant_id }}-ns{{ VPC_ID1 }} iptables -A INPUT -s {{ subnet_TID_VPC_ID2_transit }} -j ACCEPT"
+
+    - name: Add ip tables rules to accept from Tenant_NS1ID1
+      shell: "ip netns exec t{{ tenant_id }}-ns{{ VPC_ID2 }} iptables -A INPUT -s {{ subnet_TID_VPC_ID1_transit }} -j ACCEPT"
+
+
+  - name: Configure iptables rules for transit namespace
+    block:
+
+    - name: Add iptables rule for communication between Same Tenant-NS
+      shell: "ip netns exec transit-{{ tenant_id }} iptables -A FORWARD -s {{ subnet_TID_VPC_ID1_transit }} -d {{ subnet_TID_VPC_ID2_transit }} -i t{{ tenant_id }}-ns{{ VPC_ID1 }}-veth3 -o t{{ tenant_id }}-ns{{ VPC_ID2 }}-veth3 -j ACCEPT"
+
+    - name: Add iptables rule for communication between Same Tenant-NS (reverse)
+      shell: "ip netns exec transit-{{ tenant_id }} iptables -A FORWARD -s {{ subnet_TID_VPC_ID2_transit }} -d {{ subnet_TID_VPC_ID1_transit }} -i t{{ tenant_id }}-ns{{ VPC_ID2 }}-veth3 -o t{{ tenant_id }}-ns{{ VPC_ID1 }}-veth3 -j ACCEPT"
+
+
+  - name: Configure routes towards subnets in Tenant Namespaces
+    block:
+    - name: Add ip routes towards subnets in Tx-nsx
+      shell: "ip netns exec transit-{{ tenant_id }} ip route add {{ subnet_in_TID_VPC_ID1 }} via {{ addr_TID_VPC_ID1_VETH2 }} dev t{{ tenant_id }}-ns{{ VPC_ID1 }}-veth3"
+    
+    - name: Add ip routes towards subnets in Tx-nsy
+      shell: "ip netns exec transit-{{ tenant_id }} ip route add {{ subnet_in_TID_VPC_ID2 }} via {{ addr_TID_VPC_ID2_VETH2 }} dev t{{ tenant_id }}-ns{{ VPC_ID2 }}-veth3"

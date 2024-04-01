@@ -1,0 +1,94 @@
+---
+- name: Define and configure L2 OVS Bridge
+  hosts: localhost
+  become: true
+  gather_facts: yes
+  vars:
+    tenant_id: "{{ tenant_id }}"
+    VPC_id: "{{ VPC_id }}"
+    subnet_id: "{{ subnet_id }}"
+    vm_subnet_gateway_ip: "{{ vm_subnet_gateway_ip }}"
+    vm_subnet_prefix: "{{ vm_subnet_prefix }}"
+    vm_subnet_prefix_mask: "{{ vm_subnet_prefix_mask }}"
+    vm_subnet_broadcast: "{{ vm_subnet_broadcast }}"
+    dhcp_start_range: "{{ dhcp_start_range }}"
+    dhcp_end_range: "{{ dhcp_end_range }}"
+    src_dir: "templates"
+
+
+  tasks:
+  - name: Create OVS Bridge
+    openvswitch_bridge:
+      bridge: "t{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }}"
+      state: present
+
+
+  - name: Set OVS Bridge device to UP
+    command: "ip link set t{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }} up"
+
+
+  - name: Define the network
+    virt_net:
+      command: define
+      name: 't{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }}'
+      xml: '{{ lookup("template", "{{ src_dir }}/bridge.xml.j2") }}'
+      state: present
+    become: 'yes'
+
+
+  - name: Create the network
+    virt_net:
+      command: create
+      name: 't{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }}'
+      autostart: true
+    become: 'yes'
+
+
+  - name: Start the network
+    virt_net:
+      command: start
+      name: 't{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }}'
+    become: 'yes'
+
+
+  - name: Create veth pair between bridge and namespace
+    command: ip link add t{{ tenant_id }}-ns{{ VPC_id }}-vrbr{{ subnet_id }} type veth peer name vrbr{{ subnet_id }}-t{{ tenant_id }}-ns{{ VPC_id }}
+
+
+  - name: Assign namespace interface to the namespace
+    command: ip link set t{{ tenant_id }}-ns{{ VPC_id }}-vrbr{{ subnet_id }} netns t{{ tenant_id }}-ns{{ VPC_id }}
+
+
+  - name: Set namespace interface up
+    command: ip netns exec t{{ tenant_id }}-ns{{ VPC_id }} ip link set t{{ tenant_id }}-ns{{ VPC_id }}-vrbr{{ subnet_id }} up
+
+
+  - name: Add bridge interface to the OVS bridge
+    block:
+      - name: Remove any default attachments
+        command: ip link set vrbr{{ subnet_id }}-t{{ tenant_id }}-ns{{ VPC_id }} nomaster
+      - name: Add to the OVS bridge
+        command: ovs-vsctl add-port t{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }} vrbr{{ subnet_id }}-t{{ tenant_id }}-ns{{ VPC_id }}
+
+
+  - name: Set bridge interface up
+    command: ip link set vrbr{{ subnet_id }}-t{{ tenant_id }}-ns{{ VPC_id }} up
+
+
+  - name: Namespace interface subnet configuration
+    block:
+      - name: Assign IP to the namespace interface
+        command: >-
+          ip netns exec t{{ tenant_id }}-ns{{ VPC_id }} ip addr add {{ vm_subnet_gateway_ip }}/{{ vm_subnet_prefix_mask }}
+          brd {{ vm_subnet_broadcast }} dev t{{ tenant_id }}-ns{{ VPC_id }}-vrbr{{ subnet_id }}
+      - name: Setup DNSMASQ on the namespace interface
+        command: >-
+          ip netns exec t{{ tenant_id}}-ns{{ VPC_id }} dnsmasq --interface=t{{ tenant_id }}-ns{{ VPC_id }}-vrbr{{ subnet_id }} --except-interface=lo
+          --bind-interfaces --dhcp-range={{ dhcp_start_range }},{{ dhcp_end_range }},10h
+
+
+  - name: Add a NAT rule in the iptables POSTROUTING chain in the namespace for enabling subnet external connectivity - default behaviour
+    command: >-
+      ip netns exec t{{ tenant_id }}-ns{{ VPC_id }} iptables -t nat -I POSTROUTING 1
+      -s {{ vm_subnet_prefix }}/{{ vm_subnet_prefix_mask }} !
+      -d {{ vm_subnet_prefix }}/{{ vm_subnet_prefix_mask }} -j MASQUERADE

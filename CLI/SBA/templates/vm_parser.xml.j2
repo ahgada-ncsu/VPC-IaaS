@@ -1,0 +1,5 @@
+    <interface type='bridge'>
+      <source bridge='t{{ tenant_id }}-ns{{ VPC_id }}-br{{ subnet_id }}'/>
+      <virtualport type='openvswitch'/>
+      <model type='virtio'/>
+    </interface>

@@ -1,0 +1,18 @@
+---
+
+- name: Get Status of all running vms of a tenant
+  hosts: localhost
+  become: true
+  tasks:
+  - name: Get status
+    community.libvirt.virt:
+      command: list_vms
+    register: vms
+  # - name: grep only given tenant's vms
+  #   grep:
+  #     pattern: t"{{ tenant_id }}"- 
+  #     search_path: "{{ vms }}"
+  #   register: tenant_vms
+  - name: print
+    debug:
+      msg: "{{( vms | regex_search(''))}}"

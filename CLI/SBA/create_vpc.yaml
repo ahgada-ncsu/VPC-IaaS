@@ -1,0 +1,77 @@
+---
+
+- name: Connect namespace to external network
+  hosts: localhost
+  become: true
+  gather_facts: yes
+  vars:
+    vpc_namespace_name: t"{{ tenant_id }}"-ns"{{ VPC_id }}"
+    vpc_provider_interface: t"{{ tenant_id }}"-ns"{{ VPC_id }}"-veth0
+    provider_interface_name: t"{{ tenant_id }}"-ns"{{ VPC_id }}"-veth1
+    vpc_transit_interface: t"{{ tenant_id }}"-ns"{{ VPC_id }}"-veth2
+    transit_interface_name: t"{{ tenant_id }}"-ns"{{ VPC_id }}"-veth3
+  #   transit_interface_ip: "{{ transit_interface_ip }}"
+  #   vpc_provider_interface_ip: "{{ vpc_provider_interface_ip }}"
+  #   provider_interface_ip: "{{ provider_interface_ip }}"
+  #   tenant_id: "{{ tenant_id }}"
+  #   VPC_id: "{{ VPC_id }}"
+  #   vpc_transit_interface_ip: "{{ vpc_transit_interface_ip }}"
+  #   vpc_provider_subnet: "{{ vpc_provider_subnet }}"
+
+  tasks:
+  - name: check if any of the IP has already been used
+    shell: nmap -sn -PR "{{ vpc_provider_interface_ip }}" & nmap -sn -PR "{{ provider_interface_ip }}"
+    register: nmap_result
+    failed_when: (nmap_result.stdout | regex_search('1 host up')) == '1 host up'
+  # - name: Print return information from the previous task
+  #   ansible.builtin.debug:
+  #     msg: "{{ (nmap_result.stdout | regex_search('1 host up')) == '1 host up' }}"
+  - name: create veth pair between namespace and provider
+    shell: ip link add "{{ provider_interface_name }}" type veth peer name "{{ vpc_provider_interface }}"
+
+  - name: assign namespace interface to the vpc namespace
+    shell: ip link set "{{ vpc_provider_interface }}" netns "{{ vpc_namespace_name }}"
+
+  - name: assign provder interface to the provider namespace
+    shell: ip link set "{{ provider_interface_name }}" netns PNS
+
+  - name: set namespace interface up
+    shell: ip netns exec "{{ vpc_namespace_name }}" ip link set "{{ vpc_provider_interface }}" up
+
+  - name: set provider interface up
+    shell: ip netns exec PNS ip link set "{{ provider_interface_name }}" up
+
+  - name: assign ips 
+    block:
+      - name: assign ip to the namespace interface
+        shell: ip netns exec "{{ vpc_namespace_name }}" ip addr add "{{ vpc_provider_interface_ip }}"/30 dev "{{ vpc_provider_interface }}"
+      - name: assign ip to the provider interface
+        shell: ip netns exec PNS ip addr add "{{ provider_interface_ip }}"/30 dev "{{ provider_interface_name }}"
+      - name: add default route
+        shell: ip netns exec "{{ vpc_namespace_name }}" ip route add default via "{{ provider_interface_ip }}" dev "{{ vpc_provider_interface }}"
+    
+  - name: add NAT rule in the provider network
+    shell: ip netns exec PNS iptables -t nat -I POSTROUTING 1 -s "{{ vpc_provider_subnet }}"/30 ! -d "{{ vpc_provider_subnet }}"/30 -j MASQUERADE
+  - name: add connection to transit gateway
+    block:
+      - name: create veth pair to transit gateway
+        shell: ip link add "{{ transit_interface_name }}" type veth peer name "{{ vpc_transit_interface }}"
+
+      - name: assign interface to vpc namespace
+        shell: ip link set "{{ vpc_transit_interface }}" netns "{{ vpc_namespace_name }}"
+
+      - name: assign interface to transit namespace
+        shell: ip link set "{{ transit_interface_name }}" netns transit-"{{ tenant_id }}"
+
+      - name: set vpc namespace interface up
+        shell: ip netns exec "{{ vpc_namespace_name }}" ip link set "{{ vpc_transit_interface }}" up
+
+      - name: set transit gateway interface up
+        shell: ip netns exec transit-"{{ tenant_id }}" ip link set "{{ transit_interface_name }}" up
+
+      - name: assign IP to vpc transit interface
+        shell: ip netns exec "{{ vpc_namespace_name }}" ip addr add "{{ vpc_transit_interface_ip }}"/30 dev "{{ vpc_transit_interface }}"
+
+      - name: assign IP to transit interface
+        shell: ip netns exec transit-"{{ tenant_id }}" ip addr add "{{ transit_interface_ip }}"/30 dev "{{ transit_interface_name }}"
+      

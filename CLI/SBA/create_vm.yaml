@@ -1,0 +1,86 @@
+---
+- hosts: localhost
+  gather_facts: false
+  vars:
+    disk_dir: /var/lib/libvirt/images
+    sub_dir: "templates"
+    name: "{{ vm_id }}"
+    tenant_id: "{{ tenant_id }}"
+    VPC_id: "{{ VPC_id }}"
+    subnet_id: "{{ subnet_id }}"
+    ram: "{{ ram }}"
+    vcpu: "{{ vcpu }}"
+    disk_space: "{{ disk_space }}"
+    state: running
+  tasks:
+    - name: Create VM image directory
+      file:
+        path: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}'
+        state: directory
+      become: 'yes'
+    - name: Parse VM interfaces data
+      template:
+        src: '{{ sub_dir }}/vm_parser.xml.j2'
+        dest: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}_interfaces.xml'
+      become: 'yes'
+    - name: Create VM disk image from base image
+      command: >-
+        qemu-img create -f qcow2 -F qcow2 -o backing_file={{ disk_dir
+        }}/jammy-server-cloudimg-amd64.img {{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{
+        tenant_id }}-vm{{ name }}.qcow2
+      args:
+        creates: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.qcow2'
+      become: 'yes'
+    - name: Resize VM disk image
+      command: 'qemu-img resize {{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.qcow2 {{ disk_space }}'
+      become: 'yes'
+    - name: Parse VM meta-data file
+      become: 'yes'
+      template:
+        src: '{{ sub_dir }}/meta-data.j2'
+        dest: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/meta-data'
+    - name: Parse VM user-data file
+      become: 'yes'
+      template:
+        src: '{{ sub_dir }}/user-data.j2'
+        dest: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/user-data'
+    - name: Create cloud-init ISO
+      become: 'yes'
+      command: >-
+        genisoimage -output "{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{
+        tenant_id }}-vm{{ name }}-cidata.iso" -volid cidata -joliet -rock
+        "{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/meta-data"
+        "{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/user-data"
+    - name: create VM template
+      become: yes
+      copy:
+        src: '{{ sub_dir }}/vm_main.xml.j2'
+        dest: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.xml.j2'
+    - name: Add interface to VM template
+      become: yes
+      blockinfile:
+        path: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.xml.j2'
+        insertbefore: "<serial type='pty'>"
+        block: "{{ lookup('file', '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}_interfaces.xml') }}"
+    - name: Customize VM disk image
+      become: 'yes'
+      command: >-
+        virt-customize -a {{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.qcow2 --firstboot-command "bash -c 'ip link set dev enp1s0 up && dhclient enp1s0'"
+    - name: Define VM
+      become: yes
+      virt:
+        name: "t{{ tenant_id }}-vm{{ name }}"
+        command: define
+        xml: "{{ lookup('template', '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.xml.j2') }}"
+    - name: Create VM
+      become: yes
+      virt:
+        name: "t{{ tenant_id }}-vm{{ name }}"
+        command: create
+        state: destroyed
+    - name: Start VM
+      become: yes
+      virt:
+        name: "t{{ tenant_id }}-vm{{ name }}"
+        command: start
+
