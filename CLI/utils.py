@@ -11,6 +11,11 @@ def get_token():
         data = json.load(file)
     return data
 
+def get_tenantid():
+    with open('CLI/files/tenant.json') as file:
+        data = json.load(file)
+    return data["tenant_id"]
+
 
 def get_ip_breakdown(subnet):
     subnet_mask = int(subnet.split('/')[1])

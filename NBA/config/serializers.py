@@ -20,7 +20,7 @@ class VMSerializer(serializers.ModelSerializer):
     # net_type = serializers.CharField()
     class Meta:
         model = Instance
-        fields = ("Name", "Image", "SecurityGroup", "KeyPair", "State", "vRAM", "vCPU", "diskSize", "logical_provider_ip")
+        fields = ("id", "Name", "Image", "SecurityGroup", "KeyPair", "State", "vRAM", "vCPU", "diskSize", "logical_provider_ip", "VPCID", "subnet")
 
 class ProviderVPCMapSerializer(serializers.ModelSerializer):
     class Meta:

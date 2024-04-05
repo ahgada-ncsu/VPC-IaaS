@@ -2,8 +2,8 @@
     "Name": "vm1",
     "Image": "ubuntu",
     "KeyPair": "~/.ssh/id_rsa",
-    "vRAM": "1024",
-    "vCPU": "3",
-    "diskSize": "20",
+    "vRAM": "1048576",
+    "vCPU": "1",
+    "diskSize": "10",
     "SecurityGroup": {}
 }

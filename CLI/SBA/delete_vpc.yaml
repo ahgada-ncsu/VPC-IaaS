@@ -1,0 +1,35 @@
+---
+
+- name: delete a vpc
+  hosts: localhost
+  become: yes
+  gather_facts: true
+  vars:
+    # tenant_id: 1
+    # vpc_id: 1
+    # num_bridges: 2
+    # last_vpc: true
+  
+  tasks:
+  - name: Delete the tenant VPC
+    command: ip netns del t"{{ tenant_id }}"-ns"{{ vpc_id }}"
+    become: yes
+
+  - name: delete interface from transit gateway
+    command: ip netns exec transit-"{{ tenant_id }}" ip link del dev t"{{ tenant_id }}"-ns"{{ vpc_id }}"-veth3
+
+  - name: delete interface from provider namespace
+    command: ip netns exec PNS ip link del dev t"{{ tenant_id }}"-ns"{{ vpc_id }}"-veth1
+
+  # - name: delete transit namespace if last_vpc is true
+  #   command: ip netns del transit-"{{ tenant_id }}"
+  #   become: yes
+  #   when: "{{ last_vpc == 'true' }}"
+
+  - name: Delete all bridges connected to the VPC namespace
+    shell: ovs-vsctl del-br t"{{ tenant_id }}"-ns"{{ vpc_id }}"-br"{{ item }}"
+    loop: "{{ query('sequence', 'start=1 end='+(num_bridges)|string) }}"
+
+  - name: Delete interface in VPC namespace that connected to the bridge
+    shell: ip link del dev vrbr"{{ item }}"-t"{{ tenant_id }}"-ns"{{ vpc_id }}"
+    loop: "{{ query('sequence', 'start=1 end='+(num_bridges)|string) }}"

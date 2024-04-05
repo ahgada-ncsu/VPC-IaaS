@@ -62,8 +62,6 @@ class VPCView(APIView):
     def get(self, request):
         user = request.user.username
         records = VPC.objects.filter(TenantID=user)
-        for i in records:
-            print(i.id)
         records_serializer = ListVPCSerializer(records, many=True)
         return Response({
             "val": True,
@@ -136,17 +134,25 @@ class VMView(APIView):
         found=False
         net_type=""
 
+        sub_id = 0
+        ind = 0
         for i in public:
             if i["subnet"] == subnet:
                 found=True
                 net_type="public"
                 break
+            ind += 1
+            sub_id += 1
         
-        for i in private:
-            if i["subnet"] == subnet:
-                found=True
-                net_type="private"
-                break
+        if not found:
+            pind = 0
+            for i in private:
+                if i["subnet"] == subnet:
+                    found=True
+                    net_type="private"
+                    break
+                pind += 1
+                sub_id += 1
         
         if found==False:
             return Response({"val": False, "data": "Subnet is invalid"})
@@ -158,6 +164,7 @@ class VMView(APIView):
         state = request.data._mutable
         request.data._mutable = True
         # request.data["net_type"] = net_type
+        request.data["subnet"] = request.data["Subnet"]
         request.data["logical_provider_ip"] = ip
         request.data._mutable = state
 
@@ -168,11 +175,28 @@ class VMView(APIView):
                 p.save()
             record_serializer.save()
 
+            if net_type == "public":
+                public[ind]["VMs"].append(record_serializer.data["id"])
+                vpc.PublicSubnet["list"] = public
+                vpc.save()
+            else:
+                private[pind]["VMs"].append(record_serializer.data["id"])
+                vpc.PrivateSubnet["list"] = private
+                vpc.save()
+            
+            tenant_username = request.user.username
+            all_users = User.objects.all()
+            tenant_id = 0
+            for i in all_users:
+                if i.username == tenant_username:
+                    break
+                tenant_id+=1
+
             return Response({
                 "val": True,
-                "data": record_serializer.data
+                "data": record_serializer.data,
+                "add": {"tenant_id": tenant_id, "subnetID": sub_id+1}
             })
-            pass
         return Response({"val": False, "data": record_serializer.errors }, status=status.HTTP_400_BAD_REQUEST)
         
     
@@ -181,19 +205,32 @@ class VMView(APIView):
         pass
 
 
-
 class Delete(APIView):
     permission_classes=[IsAuthenticated]
 
     # Deletes VPC via VPCID 
-    # TODO: delete corresponding provider network subnet mapping as well, delete all VMs associated with the VPC, 
+    # TODO: delete corresponding provider network subnet mapping as well 
     def post(self, request):
         id = request.data["id"]
         vpc = VPC.objects.filter(id=id)
-        print(vpc)
+
+        ins = Instance.objects.filter(VPCID=id)
+        if len(ins) > 0:
+            return Response({"val": False, "data": "VMs exist in the VPC"})
+
         if len(vpc) > 0:
+            dd = VPCSerializer(vpc[0])
+
+            tenant_username = request.user.username
+            all_users = User.objects.all()
+            tenant_id = 0
+            for i in all_users:
+                if i.username == tenant_username:
+                    break
+                tenant_id+=1
+
             vpc[0].delete()
-            return Response({"val": True, "data": "VPC deleted successfully"})
+            return Response({"val": True, "data": dd.data, "add": {"tenant_id": tenant_id, "id": id}})
         return Response({"val": False, "data": "VPC not found"})
     
 
@@ -203,8 +240,62 @@ class Delete(APIView):
         id = request.data["id"]
         vm = Instance.objects.filter(id=id)
         if len(vm) > 0:
+            logical_provider_ip = vm[0].logical_provider_ip
+            if logical_provider_ip != '':
+                ProviderNetwork.objects.filter(ip=logical_provider_ip)[0].delete()
+
+            # remove from vpc
+            vpcid = vm[0].VPCID
+            vpc = VPC.objects.filter(id=vpcid)[0]
+            public = vpc.PublicSubnet["list"]
+            private = vpc.PrivateSubnet["list"]
+
+            net_type=""
+            subnet = vm[0].subnet
+
+            ind = 0
+            for i in public:
+                if i["subnet"] == subnet:
+                    net_type="public"
+                    break
+                ind += 1
+            
+            pind = 0
+            for i in private:
+                if i["subnet"] == subnet:
+                    net_type="private"
+                    break
+                pind += 1
+
+            if net_type == "public": 
+                for k in range(len(public[ind]["VMs"])):
+                    if int(public[ind]["VMs"][k]) == int(id):
+                        if k == len(public[ind]["VMs"])-1:
+                            public[ind]["VMs"] = public[ind]["VMs"][:k]
+                        elif k == 0:
+                            public[ind]["VMs"] = public[ind]["VMs"][k+1:]
+                        else:
+                            public[ind]["VMs"] = public[ind]["VMs"][:k] + public[ind]["VMs"][k+1:]
+                        break
+                vpc.PublicSubnet["list"] = public
+                vpc.save()
+            else:
+                for k in range(len(private[pind]["VMs"])):
+                    if int(private[pind]["VMs"][k]) == int(id):
+                        if k == len(private[pind]["VMs"])-1:
+                            private[pind]["VMs"] = private[pind]["VMs"][:k]
+                        elif k == 0:
+                            private[pind]["VMs"] = private[pind]["VMs"][k+1:]
+                        else:
+                            private[pind]["VMs"] = private[pind]["VMs"][:k] + private[pind]["VMs"][k+1:]
+                        break
+                vpc.PrivateSubnet["list"] = private
+                vpc.save()
+            
+            dd = VMSerializer(vm[0])
+
             vm[0].delete()
-            return Response({"val": True, "data": "VM deleted successfully"})
+            return Response({"val": True, "data": dd.data})
         return Response({"val": False, "data": "VM not found"})
 
 

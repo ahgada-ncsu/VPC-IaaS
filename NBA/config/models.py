@@ -91,6 +91,9 @@ class Instance(models.Model):
     vCPU = models.IntegerField(null=False, blank=False)
     diskSize = models.IntegerField(null=False, blank=False)
     logical_provider_ip = models.CharField(max_length=20, null=True, blank=True)
+    VPCID = models.IntegerField(null=False, blank=False)
+    subnet = models.CharField(max_length=25, null=False, blank=False)
+
 
 
     def __str__(self):

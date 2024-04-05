@@ -1,0 +1,16 @@
+---
+
+- name: delete a vm
+  hosts: localhost
+  become: yes
+  gather_facts: true
+  
+  tasks:
+  - name: shutdown vm
+    community.libvirt.virt:
+      command: shutdown
+      name: t{{ tenant_id }}-vm{{ vm_id }}
+  - name: undefine vm
+    community.libvirt.virt:
+      command: undefine
+      name: t{{ tenant_id }}-vm{{ vm_id }}

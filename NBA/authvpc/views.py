@@ -38,9 +38,16 @@ class MyTokenObtainPairView(TokenObtainPairView):
         r = super().post(requests, format)
         
         if r.status_code == 200:
-            obj = {}
+            tenant_username = requests.data["username"]
+            all_users = User.objects.all()
+            tenant_id = 0
+            for i in all_users:
+                if i.username == tenant_username:
+                    break
+                tenant_id+=1
+
             # client = User.objects.get(username=obj["username"]) 
             # obj["username"] = client.username
             
-            return Response({"data" : {"val" : True, "tokens": r.data, "details":obj}}, status=status.HTTP_200_OK)
+            return Response({"data" : {"val" : True, "tokens": r.data, "details":{"tenant_id": tenant_id}}}, status=status.HTTP_200_OK)
         return r
