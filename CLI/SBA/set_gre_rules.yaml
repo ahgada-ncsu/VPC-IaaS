@@ -1,0 +1,12 @@
+---
+
+- name: Set GRE routes
+  hosts: all
+  become: yes
+  gather_facts: true
+  
+  tasks:
+  - name: Route configuration
+    block:
+      - name: add route
+        shell: sudo ip netns exec t{{ tenant_id }}-ns{{ vpc_id }} ip route add {{ remote_subnet }} via {{ gre_remote_ip }} dev gre-tunnel

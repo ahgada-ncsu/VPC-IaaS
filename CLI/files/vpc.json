@@ -1,20 +1,24 @@
 {
-    "Name": "vpc2",
+    "Name": "vpc1",
     "Zone": "1",
-    "subnet": "172.167.0.0/16",
+    "subnet": "192.168.0.0/16",
     "PublicSubnet": {
         "list": [
             {
-                "subnet": "172.167.1.0/24",
-                "VMs": []
+                "subnet": "192.168.4.0/24",
+                "VMs": [],
+                "Con": [],
+                "zone": 1
             }
         ]
     },
     "PrivateSubnet": {
         "list": [
             {
-                "subnet": "172.167.2.0/24",
-                "VMs": []
+                "subnet": "192.168.2.0/24",
+                "VMs": [],
+                "Con": [],
+                "zone": 2
             }
         ]
     }

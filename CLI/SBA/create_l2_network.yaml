@@ -1,6 +1,6 @@
 ---
 - name: Define and configure L2 OVS Bridge
-  hosts: localhost
+  hosts: all
   become: true
   gather_facts: yes
   vars:

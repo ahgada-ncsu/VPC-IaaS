@@ -37,11 +37,15 @@ def get_provider_ip_for_vpc(tenant_id, vpc_id):
     v0 = (vpc_id - 1) * 4
     v1 = (vpc_id - 1) * 4 + 1
     v2 = (vpc_id - 1) * 4 + 2
-    return [
+    return ([
         "172.16."+str(tenant_id+1)+"."+str(v0)+"/30",
         "172.16."+str(tenant_id+1)+"."+str(v1),
         "172.16."+str(tenant_id+1)+"."+str(v2)
-    ]
+    ],[
+        "172.14."+str(tenant_id+1)+"."+str(v0)+"/30",
+        "172.14."+str(tenant_id+1)+"."+str(v1),
+        "172.14."+str(tenant_id+1)+"."+str(v2)
+    ])
 
 def get_transit_ip_for_vpc(tenant_id, vpc_id):
     # 172.15.[Tenant_ID].[(VPCID -1)*4+1]/30
@@ -49,11 +53,15 @@ def get_transit_ip_for_vpc(tenant_id, vpc_id):
     v0 = (vpc_id - 1) * 4
     v1 = (vpc_id - 1) * 4 + 1
     v2 = (vpc_id - 1) * 4 + 2
-    return [
+    return ([
         "172.15."+str(tenant_id+1)+"."+str(v0)+"/30",
         "172.15."+str(tenant_id+1)+"."+str(v1),
         "172.15."+str(tenant_id+1)+"."+str(v2)
-    ]
+    ],[
+        "172.13."+str(tenant_id+1)+"."+str(v0)+"/30",
+        "172.13."+str(tenant_id+1)+"."+str(v1),
+        "172.13."+str(tenant_id+1)+"."+str(v2)
+    ])
 
 class VPCView(APIView):
     permission_classes=[IsAuthenticated]
@@ -92,16 +100,16 @@ class VPCView(APIView):
                     break
                 tenant_id+=1    
             vpc_id = records_serializer.data["id"]
-            sub2 = get_provider_ip_for_vpc(tenant_id, vpc_id)
-            sub3 = get_transit_ip_for_vpc(tenant_id, vpc_id)
+            sub2,sub3 = get_provider_ip_for_vpc(tenant_id, vpc_id)
+            sub4, sub5 = get_transit_ip_for_vpc(tenant_id, vpc_id)
             vpc = VPC.objects.filter(id=vpc_id)[0]
-            vpc.provider_subnet = {"iplist": sub2}
-            vpc.transit_subnet = {"iplist": sub3}
+            vpc.provider_subnet = {"iplist": sub2, "iplist2": sub3}
+            vpc.transit_subnet = {"iplist": sub4, "iplist2": sub5}
             vpc.save()
 
             num_vpcs = len(VPC.objects.filter(TenantID = tenant_username))
 
-            return Response({ "val": True, "data": {"ser": records_serializer.data, "add": {"provider": sub2, "transit": sub3, "num_vpcs": num_vpcs, "tenant_id": tenant_id}}})
+            return Response({ "val": True, "data": {"ser": records_serializer.data, "add": {"provider": sub2, "transit": sub4, "provider2": sub3, "transit2": sub5, "num_vpcs": num_vpcs, "tenant_id": tenant_id}}})
         return Response({ "val": False, "data": records_serializer.errors }, status=status.HTTP_400_BAD_REQUEST)
      
     # Get individual VPC info
@@ -113,7 +121,191 @@ class VPCView(APIView):
             "val": True,
             "data": record_serializer.data
         })
+
+class ContainerView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    # add container to a subnet in the VPC
+    def post(self, request):
+        vpc_id = request.data["VPCID"]
+        subnet = request.data["Subnet"]
+
+        vpc = VPC.objects.filter(id=vpc_id)
+        if len(vpc) == 0:
+            return Response({"val": False, "data": "VPCID is invalid"})
+        vpc = vpc[0]
+        public = vpc.PublicSubnet["list"]
+        private = vpc.PrivateSubnet["list"]
+
+        found=False
+        net_type=""
+
+        sub_id = 0
+        ind = 0
+        for i in public:
+            if i["subnet"] == subnet:
+                found=True
+                net_type="public"
+                break
+            ind += 1
+        
+        if not found:
+            pind = 0
+            for i in private:
+                if i["subnet"] == subnet:
+                    found=True
+                    net_type="private"
+                    break
+                pind += 1
+        
+        if found==False:
+            return Response({"val": False, "data": "Subnet is invalid"})
+
+        tmp = {}
+        tmp["zone1"] = []
+        tmp["zone2"] = []
+        for i in public:
+            if i["zone"] == 1:
+                tmp["zone1"].append(i)
+            else:
+                tmp["zone2"].append(i)
+        
+        for i in private:
+            if i["zone"] == 1:
+                tmp["zone1"].append(i)
+            else:
+                tmp["zone2"].append(i)
+
+        found = False
+        zone = ""
+        for i in tmp["zone1"]:
+            sub_id += 1
+            if i["subnet"] == subnet:
+                found=True
+                zone="zone1"
+                break
+        if not found:
+            for i in tmp["zone2"]:
+                sub_id += 1
+                if i["subnet"] == subnet:
+                    found=True
+                    zone = "zone2"
+                    break
+        
+        ip = ""
+        if net_type == "public":
+            ip = get_ip_for_vm(vpc_id)
+
+        state = request.data._mutable
+        request.data._mutable = True
+        request.data["subnet"] = request.data["Subnet"]
+        request.data["logical_provider_ip"] = ip
+        request.data["zone"] = 1 if zone=="zone1" else 2
+        request.data._mutable = state
+
+        record_serializer = ContainerSerializer(data=request.data)
+        if record_serializer.is_valid():
+            p = ProviderNetworkSerializer(data={"ip": ip, "VPCID": vpc_id})
+            if p.is_valid():
+                p.save()
+            record_serializer.save()
+
+            if net_type == "public":
+                public[ind]["Con"].append(record_serializer.data["id"])
+                vpc.PublicSubnet["list"] = public
+                vpc.save()
+            else:
+                private[pind]["Con"].append(record_serializer.data["id"])
+                vpc.PrivateSubnet["list"] = private
+                vpc.save()
+            
+            tenant_username = request.user.username
+            all_users = User.objects.all()
+            tenant_id = 0
+            for i in all_users:
+                if i.username == tenant_username:
+                    break
+                tenant_id+=1
+
+            return Response({
+                "val": True,
+                "data": record_serializer.data,
+                "add": {"tenant_id": tenant_id, "subnetID": sub_id, "zone": zone}
+            })
+        return Response({"val": False, "data": record_serializer.errors }, status=status.HTTP_400_BAD_REQUEST)
     
+    # delete a container
+    def put(self, request):
+        id = request.data["id"]
+        vm = Container.objects.filter(id=id)
+        if len(vm) > 0:
+            logical_provider_ip = vm[0].logical_provider_ip
+            if logical_provider_ip != '':
+                # ProviderNetwork.objects.filter(ip=logical_provider_ip)[0].delete()
+                pass
+
+            # remove from vpc
+            vpcid = vm[0].VPCID
+            vpc = VPC.objects.filter(id=vpcid)[0]
+            public = vpc.PublicSubnet["list"]
+            private = vpc.PrivateSubnet["list"]
+
+            net_type=""
+            subnet = vm[0].subnet
+
+            ind = 0
+            for i in public:
+                if i["subnet"] == subnet:
+                    net_type="public"
+                    break
+                ind += 1
+            
+            pind = 0
+            for i in private:
+                if i["subnet"] == subnet:
+                    net_type="private"
+                    break
+                pind += 1
+
+            if net_type == "public": 
+                for k in range(len(public[ind]["Con"])):
+                    if int(public[ind]["Con"][k]) == int(id):
+                        if k == len(public[ind]["Con"])-1:
+                            public[ind]["Con"] = public[ind]["Con"][:k]
+                        elif k == 0:
+                            public[ind]["Con"] = public[ind]["Con"][k+1:]
+                        else:
+                            public[ind]["Con"] = public[ind]["Con"][:k] + public[ind]["Con"][k+1:]
+                        break
+                vpc.PublicSubnet["list"] = public
+                # vpc.save()
+            else:
+                for k in range(len(private[pind]["Con"])):
+                    if int(private[pind]["Con"][k]) == int(id):
+                        if k == len(private[pind]["Con"])-1:
+                            private[pind]["Con"] = private[pind]["Con"][:k]
+                        elif k == 0:
+                            private[pind]["Con"] = private[pind]["Con"][k+1:]
+                        else:
+                            private[pind]["Con"] = private[pind]["Con"][:k] + private[pind]["Con"][k+1:]
+                        break
+                vpc.PrivateSubnet["list"] = private
+                # vpc.save()
+            
+            dd = ContainerSerializer(vm[0])
+
+            # vm[0].delete()
+            return Response({"val": True, "data": dd.data})
+        return Response({"val": False, "data": "VM not found"})
+    
+    def delete(self, request):
+        id = request.data["id"]
+        c = Container.objects.filter(id=id)[0]
+        cc = ContainerSerializer(c)
+        return Response({"val": True, "data": cc.data})
+
+
+
 
 class VMView(APIView):
     permission_classes=[IsAuthenticated]
@@ -142,7 +334,6 @@ class VMView(APIView):
                 net_type="public"
                 break
             ind += 1
-            sub_id += 1
         
         if not found:
             pind = 0
@@ -152,10 +343,40 @@ class VMView(APIView):
                     net_type="private"
                     break
                 pind += 1
-                sub_id += 1
         
         if found==False:
             return Response({"val": False, "data": "Subnet is invalid"})
+
+        tmp = {}
+        tmp["zone1"] = []
+        tmp["zone2"] = []
+        for i in public:
+            if i["zone"] == 1:
+                tmp["zone1"].append(i)
+            else:
+                tmp["zone2"].append(i)
+        
+        for i in private:
+            if i["zone"] == 1:
+                tmp["zone1"].append(i)
+            else:
+                tmp["zone2"].append(i)
+
+        found = False
+        zone = ""
+        for i in tmp["zone1"]:
+            sub_id += 1
+            if i["subnet"] == subnet:
+                found=True
+                zone="zone1"
+                break
+        if not found:
+            for i in tmp["zone2"]:
+                sub_id += 1
+                if i["subnet"] == subnet:
+                    found=True
+                    zone = "zone2"
+                    break
         
         ip = ""
         if net_type == "public":
@@ -166,6 +387,9 @@ class VMView(APIView):
         # request.data["net_type"] = net_type
         request.data["subnet"] = request.data["Subnet"]
         request.data["logical_provider_ip"] = ip
+        request.data["zone"] = 1 if zone=="zone1" else 2
+        # inline ifelse statement
+        
         request.data._mutable = state
 
         record_serializer = VMSerializer(data=request.data)
@@ -195,14 +419,17 @@ class VMView(APIView):
             return Response({
                 "val": True,
                 "data": record_serializer.data,
-                "add": {"tenant_id": tenant_id, "subnetID": sub_id+1}
+                "add": {"tenant_id": tenant_id, "subnetID": sub_id, "zone": zone}
             })
         return Response({"val": False, "data": record_serializer.errors }, status=status.HTTP_400_BAD_REQUEST)
         
     
-    # Access a VM
+    # Get a VM
     def put(self, request):
-        pass
+        id = request.data["id"]
+        i = Instance.objects.filter(id=id)[0]
+        v = VMSerializer(i)
+        return Response({"val": True, "data": v.data})
 
 
 class Delete(APIView):
@@ -329,7 +556,7 @@ class InterVPCView(APIView):
 
         record_serializer = InterVPCSerializer(data=request.data)
         if record_serializer.is_valid():
-            record_serializer.save()
+            # record_serializer.save()
             return Response({
                 "val": True,
                 "data": {"ser": record_serializer.data, "vpc1": vpc1_data.data, "vpc2": vpc2_Data.data}

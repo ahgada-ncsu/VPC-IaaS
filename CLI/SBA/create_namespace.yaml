@@ -2,7 +2,7 @@
 
 
 - name: Create a new VPC
-  hosts: localhost
+  hosts: all
   become: true
   tasks:
   - name: Create a new Namespace

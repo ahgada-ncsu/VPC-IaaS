@@ -1,0 +1,29 @@
+---
+- name: Create docker container 
+  hosts: localhost
+  gather_facts: yes
+  become: true
+  vars:
+    container_id: "{{ container_id }}"
+    tenant_id: "{{ tenant_id }}"
+    subnet_id: "{{ subnet_id }}"
+    vpc_id: "{{ vpc_id }}"
+
+  tasks:
+    - name: Create a container 
+      shell: "sudo docker run -d --name t{{ tenant_id }}-con{{ container_id }} -h t{{ tenant_id }}-con{{ container_id }} --privileged --cap-add=ALL wireguard_image2"   
+
+    - name: Install required dependencies
+      shell: "sudo docker exec  t{{ tenant_id }}-con{{ container_id }} apt install isc-dhcp-client -y"
+
+    - name: Connect to bridge of public subnet in vpc 
+      shell: "sudo ovs-docker add-port t{{ tenant_id }}-ns{{ vpc_id }}-br{{ subnet_id }} docker-br t{{ tenant_id }}-con{{ container_id }}"
+
+    - name: Run dhclient on bridge connected interface 
+      shell: "sudo docker exec t{{ tenant_id }}-con{{ container_id }} dhclient docker-br"
+
+    - name: Remove connection to docker Bridge
+      shell: "sudo docker exec t{{ tenant_id }}-con{{ container_id }} ip link del eth0 "
+
+    - name: Add default route
+      shell: "sudo docker exec t{{ tenant_id }}-con{{ container_id }} ip route add default via {{ gateway }} dev docker-br"

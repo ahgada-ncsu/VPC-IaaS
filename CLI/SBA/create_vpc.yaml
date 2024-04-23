@@ -1,7 +1,7 @@
 ---
 
 - name: Connect namespace to external network
-  hosts: localhost
+  hosts: all
   become: true
   gather_facts: yes
   vars:
@@ -49,9 +49,10 @@
         shell: ip netns exec PNS ip addr add "{{ provider_interface_ip }}"/30 dev "{{ provider_interface_name }}"
       - name: add default route
         shell: ip netns exec "{{ vpc_namespace_name }}" ip route add default via "{{ provider_interface_ip }}" dev "{{ vpc_provider_interface }}"
-    
-  - name: add NAT rule in the provider network
-    shell: ip netns exec PNS iptables -t nat -I POSTROUTING 1 -s "{{ vpc_provider_subnet }}"/30 ! -d "{{ vpc_provider_subnet }}"/30 -j MASQUERADE
+  
+  # might want to remove this. This will hinder GRE
+  # - name: add NAT rule in the provider network
+  #   shell: ip netns exec PNS iptables -t nat -I POSTROUTING 1 -s "{{ vpc_provider_subnet }}"/30 ! -d "{{ vpc_provider_subnet }}"/30 -j MASQUERADE
   - name: add connection to transit gateway
     block:
       - name: create veth pair to transit gateway
@@ -74,4 +75,8 @@
 
       - name: assign IP to transit interface
         shell: ip netns exec transit-"{{ tenant_id }}" ip addr add "{{ transit_interface_ip }}"/30 dev "{{ transit_interface_name }}"
-      
+
+  - name: Add Static Route on PNS
+      shell: "sudo ip netns exec PNS ip route add {{ logical_provider_subnet }} via {{ vpc_provider_interface_ip }} dev t{{ tenant_id }}-ns{{ vpc_id }}-veth1"
+
+# sudo ip netns exec PNS ip route add 100.64.0.0/24 via 172.16.1.1 dev t0-ns1-veth1

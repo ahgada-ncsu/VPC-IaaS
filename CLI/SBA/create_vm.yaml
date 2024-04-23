@@ -1,5 +1,5 @@
 ---
-- hosts: localhost
+- hosts: all
   gather_facts: false
   vars:
     disk_dir: /var/lib/libvirt/images
@@ -56,22 +56,42 @@
       copy:
         src: '{{ sub_dir }}/vm_main.xml.j2'
         dest: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.xml.j2'
+    - name: Fetch Interface template from remote machine
+      become: yes
+      fetch:
+        src: "{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}_interfaces.xml"
+        dest: "/tmp/t{{ tenant_id }}-vm{{ name }}_interfaces.xml"
+        flat: yes
     - name: Add interface to VM template
       become: yes
       blockinfile:
         path: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.xml.j2'
         insertbefore: "<serial type='pty'>"
-        block: "{{ lookup('file', '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}_interfaces.xml') }}"
+        block: "{{ lookup('file', '/tmp/t{{ tenant_id }}-vm{{ name }}_interfaces.xml') }}"
+    - name: Delete temporary XML file
+      file:
+        path: "/tmp/t{{ tenant_id }}-vm{{ name }}_interfaces.xml"
+        state: absent
     - name: Customize VM disk image
       become: 'yes'
       command: >-
         virt-customize -a {{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.qcow2 --firstboot-command "bash -c 'ip link set dev enp1s0 up && dhclient enp1s0'"
+    - name: Fetch XML template from remote machine
+      become: yes
+      fetch:
+        src: "{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.xml.j2"
+        dest: "/tmp/t{{ tenant_id }}-vm{{ name }}.xml.j2"
+        flat: yes
     - name: Define VM
       become: yes
       virt:
         name: "t{{ tenant_id }}-vm{{ name }}"
         command: define
-        xml: "{{ lookup('template', '{{ disk_dir }}/t{{ tenant_id }}-vm{{ name }}/t{{ tenant_id }}-vm{{ name }}.xml.j2') }}"
+        xml: "{{ lookup('template', '/tmp/t{{ tenant_id }}-vm{{ name }}.xml.j2') }}"
+    - name: Delete temporary XML file
+      file:
+        path: "/tmp/t{{ tenant_id }}-vm{{ name }}.xml.j2"
+        state: absent
     - name: Create VM
       become: yes
       virt:

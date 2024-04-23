@@ -93,6 +93,7 @@ class Instance(models.Model):
     logical_provider_ip = models.CharField(max_length=20, null=True, blank=True)
     VPCID = models.IntegerField(null=False, blank=False)
     subnet = models.CharField(max_length=25, null=False, blank=False)
+    zone = models.IntegerField(null=False, blank=False)
 
 
 
@@ -120,3 +121,11 @@ class InterVPC(models.Model):
     tenant = models.CharField(max_length=30, null=False, blank=False)
     VPCID1 = models.IntegerField(blank=False, null=False)
     VPCID2 = models.IntegerField(blank=False, null=False)
+
+class Container(models.Model):
+    Name = models.CharField(max_length=30, null=False, blank=False)
+    State = models.CharField(max_length=10, null=False, blank=False)
+    logical_provider_ip = models.CharField(max_length=20, null=True, blank=True)
+    VPCID = models.IntegerField(null=False, blank=False)
+    subnet = models.CharField(max_length=25, null=False, blank=False)
+    zone = models.IntegerField(null=False, blank=False)

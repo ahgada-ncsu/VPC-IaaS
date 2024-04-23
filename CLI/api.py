@@ -48,6 +48,26 @@ def create_vm_api_call(data):
     response = requests.post(url + 'config/vm/', data=data, headers={'Authorization': 'Bearer '+tokens["access"]})
     return response.text
 
+def get_vm_api_call(id):
+    tokens = get_token()
+    response = requests.put(url + 'config/vm/', data={"id": id}, headers={'Authorization': 'Bearer '+tokens["access"]})
+    return response.text
+
+def get_container_api_call(id):
+    tokens = get_token()
+    response = requests.delete(url + 'config/container/', data={"id": id}, headers={'Authorization': 'Bearer '+tokens["access"]})
+    return response.text
+
+def create_container_api_call(data):
+    tokens = get_token()
+    response = requests.post(url + 'config/container/', data=data, headers={'Authorization': 'Bearer '+tokens["access"]})
+    return response.text
+
+def delete_container_api_call(id):
+    tokens = get_token()
+    response = requests.put(url + 'config/container/', data={"id": id}, headers={'Authorization': 'Bearer '+tokens["access"]})
+    return response.text
+
 def delete_vpc_api_call(id):
     tokens = get_token()
     response = requests.post(url + 'config/delete/', data={"id": id}, headers={'Authorization': 'Bearer '+tokens["access"]})

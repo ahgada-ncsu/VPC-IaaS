@@ -1,0 +1,18 @@
+---
+
+- name: setup gre tunnel
+  hosts: all
+  become: yes
+  gather_facts: true
+  
+  tasks:
+  - name: GRE configuration
+    block:
+      - name: create tunnel
+        shell: sudo ip netns exec t{{ tenant_id }}-ns{{ vpc_id }} ip tunnel add gre-tunnel mode ipip local {{ local_ip }} remote {{ remote_ip }}
+
+      - name: set interface to up
+        shell: sudo ip netns exec t{{ tenant_id }}-ns{{ vpc_id }} ip link set gre-tunnel up
+
+      - name: assign IP to gre tunnel interface
+        shell: sudo ip netns exec t{{ tenant_id }}-ns{{ vpc_id }} ip addr add {{ gre_tunnel_ip }} dev gre-tunnel

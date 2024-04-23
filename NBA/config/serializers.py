@@ -20,7 +20,7 @@ class VMSerializer(serializers.ModelSerializer):
     # net_type = serializers.CharField()
     class Meta:
         model = Instance
-        fields = ("id", "Name", "Image", "SecurityGroup", "KeyPair", "State", "vRAM", "vCPU", "diskSize", "logical_provider_ip", "VPCID", "subnet")
+        fields = ("id", "Name", "Image", "SecurityGroup", "KeyPair", "State", "vRAM", "vCPU", "diskSize", "logical_provider_ip", "VPCID", "subnet", "zone")
 
 class ProviderVPCMapSerializer(serializers.ModelSerializer):
     class Meta:
@@ -36,3 +36,8 @@ class InterVPCSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterVPC
         fields = ("tenant", "VPCID1", "VPCID2")
+
+class ContainerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Container
+        fields = ("id", "Name", "State", "logical_provider_ip", "VPCID", "subnet", "zone")

@@ -1,0 +1,15 @@
+---
+- name: testt
+  hosts: all
+  gather_facts: yes
+  become: true
+  vars:
+    public_ip_mapped: "{{ public_ip_mapped }}"
+    tenant_id: "{{ tenant_id }}"
+    vpc_id: "{{ vpc_id }}"
+    public_subnet_vm_ip: "{{ public_subnet_vm_ip }}"
+
+
+  tasks:
+    - name: DNAT Rules on TENANT_NS
+      shell: "sudo ip netns exec t{{ tenant_id }}-ns{{ vpc_id }} iptables -t nat -A PREROUTING -i t{{ tenant_id }}-ns{{ vpc_id }}-veth0 -d {{ public_ip_mapped }} -j DNAT --to-destination {{ public_subnet_vm_ip }}"

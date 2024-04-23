@@ -1,0 +1,21 @@
+---
+- name: Create docker container 
+  hosts: all
+  gather_facts: yes
+  become: true
+  vars:
+    container_id: "{{ container_id }}"
+    tenant_id: "{{ tenant_id }}"
+    subnet_id: "{{ subnet_id }}"
+    vpc_id: "{{ vpc_id }}"
+
+  tasks:
+    - name: Stop a container 
+      shell: "sudo docker stop t{{ tenant_id }}-con{{ container_id }}"
+
+    - name: Remove a container 
+      shell: "sudo docker rm t{{ tenant_id }}-con{{ container_id }}"
+
+    # - name: Delete port
+    #   shell: "sudo ovs-docker del-port t{{ tenant_id }}-ns{{ vpc_id }}-br{{ subnet_id }} docker-br t{{ tenant_id }}-con{{ container_id }}"
+    #   ignore_errors: yes

@@ -8,6 +8,7 @@ urlpatterns = [
     path('vpc/', VPCView.as_view(), name='vpc'),
     path('vm/', VMView.as_view(), name='vm'),
     path('delete/', Delete.as_view(), name='delete'),
-    path("intervpc/", InterVPCView.as_view(), name="intervpc")
+    path("intervpc/", InterVPCView.as_view(), name="intervpc"),
+    path("container/", ContainerView.as_view(), name="container"),
 ]
 urlpatterns = format_suffix_patterns(urlpatterns)

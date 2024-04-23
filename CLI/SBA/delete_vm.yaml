@@ -1,9 +1,11 @@
 ---
 
 - name: delete a vm
-  hosts: localhost
+  hosts: all
   become: yes
   gather_facts: true
+  vars:
+    disk_dir: /var/lib/libvirt/images
   
   tasks:
   - name: shutdown vm
@@ -14,3 +16,9 @@
     community.libvirt.virt:
       command: undefine
       name: t{{ tenant_id }}-vm{{ vm_id }}
+  
+  - name: remove vm image directory
+    file:
+      path: '{{ disk_dir }}/t{{ tenant_id }}-vm{{ vm_id }}'
+      state: absent
+    ignore_errors: yes
