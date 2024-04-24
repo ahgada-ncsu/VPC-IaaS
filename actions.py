@@ -159,7 +159,7 @@ def monitor_traffic():
     df.to_csv(f)
 
 def net_band():
-    command = ['sudo', 'iftop', '-t', '-s', '1']
+    command = ['sudo', 'iftop', '-t', '-s', '5']
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     
     with open('iftop_output_parsed.txt', 'a') as output_file:

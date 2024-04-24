@@ -11,7 +11,7 @@ user_actions = [
     "Monitor CPU usage",
     "Monitor Memory usage",
     "Monitor traffic",
-    "Get Quick Network Overview",
+    "Get Real Time Network Overview",
     "Audit network logs",
     "Quit"
 ]
