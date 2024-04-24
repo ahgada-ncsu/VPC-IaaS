@@ -1,6 +1,8 @@
 import os
 import json
 import pandas as pd
+import subprocess
+from datetime import datetime
 
 """
     Create the wireguard private key for the server
@@ -157,9 +159,17 @@ def monitor_traffic():
     df.to_csv(f)
 
 def net_band():
-    print("Band")
-
-
+    command = ['sudo', 'iftop', '-t', '-s', '1']
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    
+    with open('iftop_output_parsed.txt', 'a') as output_file:
+        while True:
+            line = process.stdout.readline().strip()
+            if not line:
+                break
+            parsed_output = line.strip()
+            output_file.write(f"{datetime.now()} - {parsed_output}\n")
+    os.system("cat iftop_output_parsed.txt")
 
 def audit_net():
     print("AUDIT")
