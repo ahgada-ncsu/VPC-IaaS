@@ -1,5 +1,6 @@
 import os
 import json
+import pandas as pd
 
 """
     Create the wireguard private key for the server
@@ -125,6 +126,24 @@ def apply_acl():
         else:
             print("Warning: 'cip' is not specified for ACL rule.")
     print("ACL applied!")
+
+def monitor_cpu():
+    df = pd.read_csv("logs/cpu.csv")
+    df.head()
+
+def monitor_memory():
+    print("Mem")
+
+def monitor_network():
+    print("Traffic")
+
+def net_band():
+    print("Band")
+
+def audit_net():
+    print("AUDIT")
+
+
 
 def quit():
     print("Quitting")

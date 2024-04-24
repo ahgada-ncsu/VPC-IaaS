@@ -8,6 +8,11 @@ user_actions = [
     "Create VPN Server",
     "Create Peers",
     "Apply access control list",
+    "Monitor CPU usage",
+    "Monitor Memory usage",
+    "Monitor traffic",
+    "Get Quick Network Overview",
+    "Audit network logs",
     "Quit"
 ]
 
@@ -17,6 +22,11 @@ cli_actions = [
     create_vpn_server,
     create_peer,
     apply_acl,
+    monitor_cpu,
+    monitor_memory,
+    monitor_traffic,
+    net_band,
+    audit_net,
     quit
 ]
 
