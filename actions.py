@@ -122,10 +122,9 @@ def apply_acl():
             for subnet in config['pvt']:
                 if subnet not in allowed_subnets:
                     os.system(f'iptables -I FORWARD 1 -i wg0 -s {cip} -d {subnet} -j DROP')
-            print("ACL applied!")
         else:
             print("Warning: 'cip' is not specified for ACL rule.")
-    
+    print("ACL applied!")
 
 def quit():
     print("Quitting")
