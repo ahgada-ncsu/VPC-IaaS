@@ -36,6 +36,8 @@ PostUp = iptables -A FORWARD -i wg0 -j ACCEPT
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT
 ListenPort = 51820
 """)
+    os.system("sudo wg-quick up wg0")
+
 
 
 """
@@ -104,9 +106,26 @@ Endpoint={fp}:51820
 """)
     file.close()
     os.system(f"sudo wg set wg0 peer {peer_public_key} allowed-ips {peer_IP.split('/')[0]}")
+    os.system("sudo wg-quick down wg0")
+    os.system("sudo wg-quick up wg0")
 
 def apply_acl():
     print("Applying access control list")
+    os.system(f'iptables -t filter -F FORWARD')
+    config = {}
+    with open("CLI/acl.json", 'r') as file:
+        config = json.load(file)
+    for acl_rule in config['acl']:
+        cip = acl_rule['cip']
+        allowed_subnets = set(config['pvt'][index] for index in acl_rule.get('allow', []))
+        if cip:  # Check if cip is specified
+            for subnet in config['pvt']:
+                if subnet not in allowed_subnets:
+                    os.system(f'iptables -I FORWARD 1 -i wg0 -s {cip} -d {subnet} -j DROP')
+        print("ACL applied!")
+        else:
+            print("Warning: 'cip' is not specified for ACL rule.")
+    
 
 def quit():
     print("Quitting")
