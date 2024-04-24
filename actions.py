@@ -104,7 +104,7 @@ AllowedIPs=0.0.0.0/0
 Endpoint={fp}:51820
 """)
     file.close()
-    os.system(f"sudo wg set wg0 peer {peer_public_key} allowed-ips {peer_IP.split("/")[0]}")
+    os.system(f"sudo wg set wg0 peer {peer_public_key} allowed-ips {peer_IP.split('/')[0]}")
 
 def apply_acl():
     print("Applying access control list")
