@@ -129,7 +129,7 @@ def apply_acl():
 
 def monitor_cpu():
     df = pd.read_csv("logs/cpu.csv")
-    pd.set_option("display.max_columns", 0)
+    pd.set_option("display.max_columns", 100)
     print(df[-5:-1])
 
 def monitor_memory():
