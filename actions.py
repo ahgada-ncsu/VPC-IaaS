@@ -90,10 +90,6 @@ def create_peer():
     file.write(json.dumps(peer_config))
     file.close()
 
-    # write the file to CLI/peer_configs/name.conf
-    os.system(f"touch CLI/peer_configs/{name}.conf")
-    
-
     file = open(f"CLI/peer_configs/{name}.conf", "w")
     file.write(f"""[Interface]
 PrivateKey={peer_private_key}
