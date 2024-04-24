@@ -20,7 +20,7 @@ def create_vpn_server():
     # server_public_key = os.popen('cat /etc/wireguard/server_public.key').read()
     # listen_port = 51820
     # read the file "server_config.json"
-    file = open("server_config.json", "r")
+    file = open("CLI/server_config.json", "r")
     server_config = file.read()
     server_config = json.loads(server_config)
     file.close()
