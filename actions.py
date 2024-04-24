@@ -139,17 +139,30 @@ def monitor_cpu():
     
 
 def monitor_memory():
-    print("Mem")
+    print("Get result for past N seconds")
+    n = input("N: ")
+    f = input("Output csv file name: ")
+    df = pd.read_csv("logs/mem.csv")
+    df1 = df[0:1]
+    df = pd.concat([ df1, df.tail(int(n))])
+    df.to_csv(f)
 
 def monitor_traffic():
-    print("Traffic")
+    print("Get result for past N seconds")
+    n = input("N: ")
+    f = input("Output csv file name: ")
+    df = pd.read_csv("logs/traffic.csv")
+    df1 = df[0:1]
+    df = pd.concat([ df1, df.tail(int(n))])
+    df.to_csv(f)
 
 def net_band():
     print("Band")
 
+
+
 def audit_net():
     print("AUDIT")
-
 
 
 def quit():
