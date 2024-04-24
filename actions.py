@@ -67,9 +67,9 @@ def create_peer():
     os.system(f"wg genkey | sudo tee /etc/wireguard/{name}_private.key")
     os.system(f"sudo chmod go= /etc/wireguard/{name}_private.key")
     os.system(f"sudo cat /etc/wireguard/{name}_private.key | wg pubkey | sudo tee /etc/wireguard/{name}_public.key")
-    peer_private_key = os.popen(f'cat /etc/wireguard/{name}_private.key').read()
-    peer_public_key = os.popen(f'cat /etc/wireguard/{name}_public.key').read()
-    server_public_key = os.popen('cat /etc/wireguard/server_public.key').read()
+    peer_private_key = os.popen(f'cat /etc/wireguard/{name}_private.key').read().strip()
+    peer_public_key = os.popen(f'cat /etc/wireguard/{name}_public.key').read().strip()
+    server_public_key = os.popen('cat /etc/wireguard/server_public.key').read().strip()
     
     # read the file "server_config.json"
     file = open("CLI/server_config.json", "r")
