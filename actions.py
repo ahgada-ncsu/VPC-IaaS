@@ -129,7 +129,7 @@ def apply_acl():
 
 def monitor_cpu():
     df = pd.read_csv("logs/cpu.csv")
-    df.head()
+    print(df.head())
 
 def monitor_memory():
     print("Mem")
