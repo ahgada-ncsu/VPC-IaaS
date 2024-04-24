@@ -134,7 +134,7 @@ def monitor_cpu():
 def monitor_memory():
     print("Mem")
 
-def monitor_network():
+def monitor_traffic():
     print("Traffic")
 
 def net_band():
