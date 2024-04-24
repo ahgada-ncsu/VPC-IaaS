@@ -133,7 +133,9 @@ def monitor_cpu():
     n = input("N: ")
     f = input("Output csv file name: ")
     df = pd.read_csv("logs/cpu.csv")
-    df = df.tail(int(n))
+    df1 = df[0]
+
+    df = pd.concat([ df1, df.tail(int(n))])
     df.to_csv(f)
     
 
