@@ -127,10 +127,15 @@ def apply_acl():
             print("Warning: 'cip' is not specified for ACL rule.")
     print("ACL applied!")
 
+
 def monitor_cpu():
+    print("Get result for past N seconds")
+    n = input("N: ")
+    f = input("Output csv file name: ")
     df = pd.read_csv("logs/cpu.csv")
-    pd.set_option("display.max_columns", 100)
-    print(df[-5:-1])
+    df = df.tail(int(n))
+    df.to_csv(f)
+    
 
 def monitor_memory():
     print("Mem")
