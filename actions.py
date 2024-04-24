@@ -172,7 +172,13 @@ def net_band():
     os.system("cat iftop_output_parsed.txt")
 
 def audit_net():
-    print("AUDIT")
+    print("Get last N records")
+    n = input("N: ")
+    f = input("Output csv file name: ")
+    df = pd.read_csv("logs/audit.csv")
+    df1 = df[0:1]
+    df = pd.concat([ df1, df.tail(int(n))])
+    df.to_csv(f)
 
 
 def quit():

@@ -8,6 +8,7 @@ user_actions = [
     "Create VPN Server",
     "Create Peers",
     "Apply access control list",
+    "Stop Server"
     "Monitor CPU usage",
     "Monitor Memory usage",
     "Monitor traffic",
